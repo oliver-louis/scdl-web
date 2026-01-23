@@ -1,0 +1,7 @@
+services:
+  sc-downloader:
+    build: .
+    container_name: sc-downloader
+    restart: unless-stopped
+    ports:
+      - "8000:8000"
