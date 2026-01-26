@@ -266,11 +266,11 @@ HTML = """
             <div class="foot">
               <div class="hintbox">
                 <div class="small"><strong>Limits:</strong> max duration and filesize are enforced server-side.</div>
-                <div class="small">Private service - access limited to users only. Don't share this link publicly.</div>
+                <div class="small"><strong>Private service:</strong> - access limited to users only.</div>
+                <div class="small"><strong>Do not share this link publicly.</div>
 
                 <div class="small">Tip: If a link fails, try the main track URL (not a set/playlist).</div>
               </div>
-              <div class="small">Protected by your reverse proxy (NPM). Don’t share the link publicly.</div>
             </div>
           </form>
         </main>
