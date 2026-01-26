@@ -41,6 +41,22 @@ def log_event(event: str, **fields):
         parts.append(f"{k}={s}")
     logger.info(" ".join(parts))
 
+def get_auth_user():
+    """
+    Return the username forwarded by NPM, if present.
+    """
+    return (
+        request.headers.get("X-Forwarded-User")
+        or request.headers.get("Remote-User")
+        or "unknown"
+    )
+
+def get_client_ip():
+    xf = request.headers.get("X-Forwarded-For")
+    if xf:
+        return xf.split(",")[0].strip()
+    return request.remote_addr
+
 
 # ---- Limits / validation ----
 ALLOWED_HOSTS = {
@@ -412,6 +428,7 @@ def download():
         produced_size = os.path.getsize(mp3_path)
         log_event(
         "download_ok",
+            user=get_auth_user(),
             ip=client_ip,
             site=(info.get("extractor_key") or info.get("extractor")),
             title=info.get("title"),
