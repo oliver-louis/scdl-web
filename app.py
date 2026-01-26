@@ -242,8 +242,7 @@ HTML = """
       <div class="card">
         <header>
           <h1 class="title">
-            SoundCloud / YouTube → MP3
-            <span class="badge">Dark mode</span>
+            SoundCloud / YouTube → MP3 
           </h1>
           <p class="sub">Paste a track URL. The server will fetch it, convert to MP3, embed metadata/cover art, then your browser will download it.</p>
         </header>
@@ -267,7 +266,7 @@ HTML = """
               <div class="hintbox">
                 <div class="small"><strong>Limits:</strong> max duration and filesize are enforced server-side.</div>
                 <div class="small"><strong>Private service:</strong> - access limited to users only.</div>
-                <div class="small"><strong>Do not share this link publicly.</div>
+                <div class="small"><strong>Do not share this link publicly.</strong></div>
 
                 <div class="small">Tip: If a link fails, try the main track URL (not a set/playlist).</div>
               </div>
