@@ -8,7 +8,7 @@ import logging
 from logging.handlers import RotatingFileHandler
 from datetime import datetime, timezone
 
-from flask import Flask, request, Response
+from flask import Flask, request, Response, send_from_directory
 from yt_dlp import YoutubeDL
 
 app = Flask(__name__)
@@ -57,6 +57,23 @@ def get_client_ip():
         return xf.split(",")[0].strip()
     return request.remote_addr
 
+@app.get("/favicon.png")
+def favicon():
+    return send_from_directory(
+        os.path.join(app.root_path, "static"),
+        "favicon.png",
+        mimetype="image/png"
+    )
+
+@app.get("/favicon.ico")
+def favicon_ico():
+    return send_from_directory(
+        os.path.join(app.root_path, "static"),
+        "favicon.png",
+        mimetype="image/png"
+    )
+
+
 
 # ---- Limits / validation ----
 ALLOWED_HOSTS = {
@@ -78,6 +95,8 @@ HTML = """
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>SoundCloud / YouTube → MP3</title>
+    <link rel="icon" type="image/png" href="/favicon.png">
+    <link rel="apple-touch-icon" href="/favicon.png">
     <meta name="color-scheme" content="dark" />
     <style>
       :root{
