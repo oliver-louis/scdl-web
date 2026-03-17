@@ -17,12 +17,12 @@ It provides a simple web interface, processes a single track per request, embeds
   - [🛠 Manual Docker Build](#-manual-docker-build)
   - [💻 Running Locally (Docker Recommended)](#-running-locally-docker-recommended)
 - [⚙️ Environment & Storage](#-environment--storage)
-- [🌐 Reverse Proxy](#reverse-proxy)
-- [🧾 Logging](#logging)
-- [⚠️ Usage Notes](#usage-notes)
-- [🔒 Security Notes](#security-notes)
-- [🛠 Troubleshooting](#troubleshooting)
-- [📄 License](#license)
+- [🌐 Reverse Proxy](#-reverse-proxy)
+- [🧾 Logging](#-logging)
+- [⚠️ Usage Notes](#-usage-notes)
+- [🔒 Security Notes](#-security-notes)
+- [🛠 Troubleshooting](#-troubleshooting)
+- [📄 License](#-license)
 
 ---
 
