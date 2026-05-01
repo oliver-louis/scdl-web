@@ -9,9 +9,12 @@ from logging.handlers import RotatingFileHandler
 from datetime import datetime, timezone
 
 from flask import Flask, request, Response, send_from_directory
+from auth import configure_auth, current_username, login_required, register_auth_routes
 from yt_dlp import YoutubeDL
 
 app = Flask(__name__)
+configure_auth(app)
+register_auth_routes(app)
 
 LOG_DIR = os.getenv("LOG_DIR", "/logs")
 os.makedirs(LOG_DIR, exist_ok=True)
@@ -42,14 +45,7 @@ def log_event(event: str, **fields):
     logger.info(" ".join(parts))
 
 def get_auth_user():
-    """
-    Return the username forwarded by NPM, if present.
-    """
-    return (
-        request.headers.get("X-Forwarded-User")
-        or request.headers.get("Remote-User")
-        or "unknown"
-    )
+    return current_username()
 
 def get_client_ip():
     xf = request.headers.get("X-Forwarded-For")
@@ -346,20 +342,21 @@ def format_bytes(n: int) -> str:
     return f"{n:.1f}GB"
 
 @app.get("/")
+@login_required
 def index():
     return Response(HTML, mimetype="text/html")
 
 @app.post("/download")
+@login_required
 def download():
+    client_ip = get_client_ip()
+    raw_url = request.form.get("url", "")
+
     try:
-        url = validate_url(request.form.get("url", ""))
-        client_ip = request.headers.get("X-Forwarded-For", request.remote_addr)
-        # If behind NPM, X-Forwarded-For may be "client, proxy"; keep first:
-        if client_ip and "," in client_ip:
-            client_ip = client_ip.split(",")[0].strip()
+        url = validate_url(raw_url)
 
     except ValueError as ve:
-        log_event("reject", ip=client_ip, reason=str(ve), url=request.form.get("url", ""))
+        log_event("reject", ip=client_ip, reason=str(ve), url=raw_url)
         return Response(str(ve), status=400)
 
     # per-request temp workspace

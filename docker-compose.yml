@@ -8,4 +8,21 @@ services:
     volumes:
       - ./logs:/logs
     environment:
-      - TZ=Australia/Brisbane
+      TZ: ${TZ:-Australia/Brisbane}
+      LOG_DIR: ${LOG_DIR:-/logs}
+
+      AUTH_MODE: ${AUTH_MODE:-none}
+      SECRET_KEY: ${SECRET_KEY:-}
+      PUBLIC_BASE_URL: ${PUBLIC_BASE_URL:-}
+      SESSION_COOKIE_SECURE: ${SESSION_COOKIE_SECURE:-false}
+      SESSION_COOKIE_SAMESITE: ${SESSION_COOKIE_SAMESITE:-Lax}
+      TRUST_PROXY_HEADERS: ${TRUST_PROXY_HEADERS:-true}
+
+      OIDC_CLIENT_ID: ${OIDC_CLIENT_ID:-}
+      OIDC_CLIENT_SECRET: ${OIDC_CLIENT_SECRET:-}
+      OIDC_DISCOVERY_URL: ${OIDC_DISCOVERY_URL:-}
+      OIDC_SCOPES: ${OIDC_SCOPES:-openid profile email}
+      OIDC_ALLOWED_GROUPS: ${OIDC_ALLOWED_GROUPS:-}
+      OIDC_GROUPS_CLAIM: ${OIDC_GROUPS_CLAIM:-groups}
+      OIDC_USERNAME_CLAIM: ${OIDC_USERNAME_CLAIM:-preferred_username}
+      OIDC_END_SESSION_URL: ${OIDC_END_SESSION_URL:-}
