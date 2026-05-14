@@ -1,4 +1,5 @@
 import os
+import time
 from functools import wraps
 
 from authlib.integrations.flask_client import OAuth
@@ -15,6 +16,23 @@ def env_bool(name: str, default: bool = False) -> bool:
         return default
 
     return value.strip().lower() in {"1", "true", "yes", "on"}
+
+
+def env_int(name: str, default: int) -> int:
+    value = os.getenv(name)
+
+    if value is None or not value.strip():
+        return default
+
+    try:
+        parsed = int(value)
+    except ValueError as exc:
+        raise RuntimeError(f"{name} must be an integer") from exc
+
+    if parsed < 0:
+        raise RuntimeError(f"{name} must be greater than or equal to 0")
+
+    return parsed
 
 
 def csv_env(name: str, default: str = "") -> list[str]:
@@ -62,6 +80,10 @@ def configure_auth(app) -> None:
     app.config["SESSION_COOKIE_HTTPONLY"] = True
     app.config["SESSION_COOKIE_SAMESITE"] = os.getenv("SESSION_COOKIE_SAMESITE", "Lax")
     app.config["SESSION_COOKIE_SECURE"] = env_bool("SESSION_COOKIE_SECURE", False)
+    app.config["OIDC_SESSION_MAX_AGE_SECONDS"] = env_int(
+        "OIDC_SESSION_MAX_AGE_SECONDS",
+        28_800,
+    )
     app.config["PREFERRED_URL_SCHEME"] = (
         "https" if app.config["SESSION_COOKIE_SECURE"] else "http"
     )
@@ -124,11 +146,34 @@ def safe_next_url() -> str:
     return next_url
 
 
+def oidc_session_is_expired() -> bool:
+    max_age = current_app.config.get("OIDC_SESSION_MAX_AGE_SECONDS", 28_800)
+
+    if max_age == 0:
+        return False
+
+    authenticated_at = session.get("authenticated_at")
+
+    if authenticated_at is None:
+        return True
+
+    try:
+        authenticated_at = float(authenticated_at)
+    except (TypeError, ValueError):
+        return True
+
+    return time.time() - authenticated_at > max_age
+
+
 def current_user() -> dict | None:
     auth_mode = current_app.config.get("AUTH_MODE", "none")
     oidc_user = session.get("user")
 
     if oidc_user:
+        if auth_mode == "oidc" and oidc_session_is_expired():
+            session.clear()
+            return None
+
         return oidc_user
 
     if auth_mode != "proxy":
@@ -250,6 +295,7 @@ def register_auth_routes(app) -> None:
             return Response("Forbidden", status=403)
 
         session["user"] = user
+        session["authenticated_at"] = time.time()
 
         return redirect(session.pop("next_url", "/"))
 

@@ -17,6 +17,10 @@ It provides a simple web interface, processes a single track per request, embeds
   - [🛠 Manual Docker Build](#-manual-docker-build)
   - [💻 Running Locally (Docker Recommended)](#-running-locally-docker-recommended)
 - [⚙️ Environment & Storage](#-environment--storage)
+- [🔐 Authentication](#-authentication)
+  - [Default: no built-in auth](#default-no-built-in-auth)
+  - [Proxy header auth](#proxy-header-auth)
+  - [Authentik / OpenID Connect](#authentik--openid-connect)
 - [🌐 Reverse Proxy](#-reverse-proxy)
 - [🧾 Logging](#-logging)
 - [⚠️ Usage Notes](#-usage-notes)
@@ -40,6 +44,10 @@ It provides a simple web interface, processes a single track per request, embeds
   - max duration: **12 minutes**
   - max filesize: **40 MB**
 - Rotating logs (`./logs/downloads.log`)
+- Optional authentication modes:
+  - no built-in auth
+  - reverse-proxy forwarded user headers
+  - Authentik / OpenID Connect
 - Production-ready via **Gunicorn + Docker**
 
 ---
@@ -176,14 +184,130 @@ flask --app app run --host=0.0.0.0 --port=8000
 
 - `LOG_DIR` → defaults to `/logs`
 - `TZ` → timezone (set via Docker)
+- `AUTH_MODE` → auth mode, defaults to `none`
 
 Temporary files are created per request and automatically cleaned up.
+
+Copy `.env.example` to your deployment environment or pass equivalent variables through Docker Compose, Unraid, or your container manager. Do not commit real secrets.
+
+---
+
+## 🔐 Authentication
+
+The app supports three auth modes:
+
+| Mode | Description |
+| --- | --- |
+| `none` | Default. No built-in authentication. Use only on a trusted private network or behind another access control layer. |
+| `proxy` | Requires a trusted reverse proxy to send `X-Forwarded-User` or `Remote-User`. |
+| `oidc` | Uses Authentik / OpenID Connect with a server-side authorization-code flow. |
+
+### Default: no built-in auth
+
+By default, Docker Compose runs with:
+
+```env
+AUTH_MODE=none
+```
+
+This preserves the original behavior. Anyone who can reach the app can use it.
+
+### Proxy header auth
+
+Use this if another trusted service authenticates users before requests reach this app:
+
+```env
+AUTH_MODE=proxy
+```
+
+Authenticated requests must include one of:
+
+```txt
+X-Forwarded-User
+Remote-User
+```
+
+Optional headers used for logging/user metadata:
+
+```txt
+X-Forwarded-Email
+X-Forwarded-Groups
+```
+
+Only enable this mode when the app is reachable exclusively through a proxy that strips untrusted incoming auth headers.
+
+### Authentik / OpenID Connect
+
+Use this mode for direct OIDC login through Authentik:
+
+```env
+AUTH_MODE=oidc
+SECRET_KEY=replace-with-a-long-random-value
+PUBLIC_BASE_URL=https://scdl.example.com
+SESSION_COOKIE_SECURE=true
+SESSION_COOKIE_SAMESITE=Lax
+
+OIDC_CLIENT_ID=scdl-web
+OIDC_CLIENT_SECRET=replace-with-authentik-client-secret
+OIDC_DISCOVERY_URL=https://auth.example.com/application/o/scdl-web/.well-known/openid-configuration
+OIDC_SCOPES=openid profile email
+OIDC_ALLOWED_GROUPS=
+OIDC_GROUPS_CLAIM=groups
+OIDC_USERNAME_CLAIM=preferred_username
+OIDC_SESSION_MAX_AGE_SECONDS=28800
+OIDC_END_SESSION_URL=https://auth.example.com/application/o/scdl-web/end-session/
+```
+
+For local testing over plain HTTP:
+
+```env
+PUBLIC_BASE_URL=http://localhost:8000
+SESSION_COOKIE_SECURE=false
+```
+
+#### Authentik provider setup
+
+Create an **OAuth2/OpenID Provider** in Authentik:
+
+- Client type: `Confidential`
+- Authorization flow: explicit or implicit consent provider flow
+- Redirect URI for local testing: `http://localhost:8000/auth/callback`
+- Redirect URI for deployment: `https://scdl.example.com/auth/callback`
+- Scopes/property mappings: `openid`, `profile`, `email`
+
+The app uses the OAuth2 authorization-code flow. Authentik's explicit/implicit consent provider-flow setting only controls whether users see a consent screen; it is not the legacy OAuth implicit grant.
+
+After login, the app keeps its own Flask session. This is separate from the user's Authentik browser session, so changing Authentik consent/session duration does not automatically expire an already-authenticated app session.
+
+By default, OIDC app sessions expire **8 hours** after login:
+
+```env
+OIDC_SESSION_MAX_AGE_SECONDS=28800
+```
+
+Set it to `0` to disable app-side session expiry and keep the old browser-session-cookie behavior:
+
+```env
+OIDC_SESSION_MAX_AGE_SECONDS=0
+```
+
+Use Authentik application policies/groups if you want Authentik-only access control. In that case, leave:
+
+```env
+OIDC_ALLOWED_GROUPS=
+```
+
+If you also want the Flask app to enforce group membership, set a comma-separated allowlist:
+
+```env
+OIDC_ALLOWED_GROUPS=scdl-users,admins
+```
 
 ---
 
 ## 🌐 Reverse Proxy
 
-This app has **no built-in authentication**. Use a reverse proxy.
+Use a reverse proxy for TLS termination and production routing.
 
 Recommended:
 - Nginx
@@ -191,7 +315,8 @@ Recommended:
 
 Supports:
 - `X-Forwarded-For` → client IP
-- `X-Forwarded-User` / `Remote-User` → authenticated user
+- `X-Forwarded-Proto` / `X-Forwarded-Host` → public URL generation
+- `X-Forwarded-User` / `Remote-User` → authenticated user when `AUTH_MODE=proxy`
 
 ### Example
 
@@ -240,7 +365,7 @@ Includes:
 This should be treated as a **private self-hosted service**.
 
 If exposed publicly, consider:
-- authentication (reverse proxy)
+- `AUTH_MODE=oidc` with Authentik or another trusted OIDC provider
 - rate limiting
 - IP allowlisting
 - abuse monitoring
