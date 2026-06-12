@@ -2,7 +2,8 @@ import os
 import re
 import shutil
 import tempfile
-from urllib.parse import urlparse
+import unicodedata
+from urllib.parse import quote, urlparse
 
 import logging
 from logging.handlers import RotatingFileHandler
@@ -316,6 +317,14 @@ def safe_filename(name: str) -> str:
     name = re.sub(r"[^\w\-. ()\[\]]+", "_", name).strip()
     return name[:180] if name else "download"
 
+def content_disposition_attachment(filename: str) -> str:
+    # RFC 6266/5987: keep the legacy filename ASCII-only and put Unicode in filename*.
+    filename = filename.replace("\\", "_").replace('"', "_").replace("\r", "_").replace("\n", "_")
+    ascii_fallback = unicodedata.normalize("NFKD", filename).encode("ascii", "ignore").decode("ascii").strip(" .")
+    ascii_fallback = re.sub(r"[^A-Za-z0-9_. ()\[\]-]+", "_", ascii_fallback) or "download.mp3"
+    utf8_filename = quote(filename, safe="")
+    return f'attachment; filename="{ascii_fallback}"; filename*=UTF-8\'\'{utf8_filename}'
+
 def validate_url(raw: str) -> str:
     if not raw:
         raise ValueError("Missing URL")
@@ -469,7 +478,7 @@ def download():
                     yield chunk
 
         resp = Response(generate(), mimetype="audio/mpeg")
-        resp.headers["Content-Disposition"] = f'attachment; filename="{title}.mp3"'
+        resp.headers["Content-Disposition"] = content_disposition_attachment(f"{title}.mp3")
 
         @resp.call_on_close
         def _cleanup():
